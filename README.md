@@ -39,9 +39,18 @@ cd Medical-Insurance-Cost-Prediction
 ```
 
 2. Install dependencies:
+
+**Basic installation (Linear Regression + Random Forest models):**
 ```bash
 pip install -r requirements.txt
 ```
+
+**Full installation (includes Neural Network models):**
+```bash
+pip install -r requirements-full.txt
+```
+
+> **Note**: The basic installation excludes TensorFlow to ensure compatibility with lightweight deployment environments. Neural Network models will be automatically disabled if TensorFlow is not available.
 
 3. Run the application:
 ```bash

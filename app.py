@@ -14,19 +14,25 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, accuracy_score, classification_report
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 
-# TensorFlow/Keras imports
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.optimizers import Adam
+# TensorFlow/Keras imports (optional)
+try:
+    import tensorflow as tf
+    from tensorflow import keras
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.layers import Dense
+    from tensorflow.keras.optimizers import Adam
+    TENSORFLOW_AVAILABLE = True
+    # Set random seed for reproducibility
+    tf.random.set_seed(42)
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
+    st.warning("⚠️ TensorFlow is not available. Neural Network models will be disabled.")
 
 import warnings
 warnings.filterwarnings('ignore')
 
 # Set random seed for reproducibility
 np.random.seed(42)
-tf.random.set_seed(42)
 
 def inject_global_styles():
     """Inject medical-themed CSS styles"""
@@ -419,12 +425,17 @@ def model_training_section(processed_data):
         </div>
         """, unsafe_allow_html=True)
         
+        # Determine available models
+        available_models = ["Linear Regression", "Random Forest"]
+        if TENSORFLOW_AVAILABLE:
+            available_models.append("Neural Network")
+        
         model_type = st.selectbox(
             "Select Model Type",
-            ["Linear Regression", "Random Forest", "Neural Network"]
+            available_models
         )
         
-        if model_type == "Neural Network":
+        if model_type == "Neural Network" and TENSORFLOW_AVAILABLE:
             hidden_layers = st.slider("Hidden Layers", 1, 3, 2)
             neurons = st.slider("Neurons per Layer", 16, 128, 64)
     
@@ -438,7 +449,7 @@ def model_training_section(processed_data):
         test_size = st.slider("Test Size", 0.1, 0.4, 0.2)
         random_state = st.number_input("Random State", value=42)
         
-        if model_type == "Neural Network":
+        if model_type == "Neural Network" and TENSORFLOW_AVAILABLE:
             epochs = st.slider("Training Epochs", 50, 300, 100)
             learning_rate = st.selectbox("Learning Rate", [0.001, 0.01, 0.1], index=0)
     
@@ -475,7 +486,7 @@ def train_models(processed_data, model_type, test_size, random_state):
         elif model_type == "Random Forest":
             reg_model = RandomForestRegressor(random_state=random_state)
             reg_model.fit(X_train_scaled, y_reg_train)
-        else:  # Neural Network
+        elif model_type == "Neural Network" and TENSORFLOW_AVAILABLE:
             reg_model = Sequential([
                 Dense(64, activation='relu', input_shape=(X_train_scaled.shape[1],)),
                 Dense(32, activation='relu'),
@@ -483,6 +494,8 @@ def train_models(processed_data, model_type, test_size, random_state):
             ])
             reg_model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
             reg_model.fit(X_train_scaled, y_reg_train, epochs=100, verbose=0, validation_split=0.2)
+        else:
+            st.error("Selected model is not available.")
     
     # Store model in session state
     st.session_state.regression_model = reg_model
