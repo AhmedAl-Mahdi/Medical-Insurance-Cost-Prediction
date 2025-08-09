@@ -18,7 +18,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam, SGD
 
 # Set page config
 st.set_page_config(
@@ -68,6 +68,27 @@ def load_default_data():
     except FileNotFoundError:
         st.error("Default insurance.csv file not found. Please upload a dataset.")
         return None
+
+def get_charge_category_from_cost(cost):
+    """Convert insurance cost to charge category"""
+    if cost < 5000:
+        return "Low", "💚"
+    elif cost < 15000:
+        return "Medium", "💛"
+    elif cost < 30000:
+        return "High", "🧡"
+    else:
+        return "Very High", "❤️"
+
+def get_cost_range_from_category(category):
+    """Get cost range for a given category"""
+    cost_ranges = {
+        "Low": (0, 5000),
+        "Medium": (5000, 15000), 
+        "High": (15000, 30000),
+        "Very High": (30000, 100000)
+    }
+    return cost_ranges.get(category, (0, 100000))
 
 def preprocess_data(data, target_col='charges'):
     """Preprocess the data with encoding and scaling"""
@@ -286,7 +307,7 @@ def create_model_training_section(processed_data, selected_features):
     # Model parameters
     st.subheader("Model Parameters")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         epochs = st.slider("Epochs", 10, 500, 100)
         batch_size = st.selectbox("Batch Size", [16, 32, 64, 128], index=1)
@@ -298,6 +319,31 @@ def create_model_training_section(processed_data, selected_features):
     with col3:
         learning_rate = st.selectbox("Learning Rate", [0.0001, 0.001, 0.01, 0.1], index=1)
         validation_split = st.slider("Validation Split", 0.1, 0.4, 0.2)
+    
+    with col4:
+        optimizer_choice = st.selectbox("Optimizer", ["Adam", "SGD"], index=0)
+    
+    # Display model architecture information
+    st.subheader("Model Architecture Information")
+    
+    info_col1, info_col2 = st.columns(2)
+    with info_col1:
+        st.info(f"""
+        **Neural Network Architecture:**
+        - Input Layer: {len(selected_features) if selected_features else 'N/A'} features
+        - Hidden Layer 1: {layer1_units} units (ReLU activation)
+        - Hidden Layer 2: {layer2_units} units (ReLU activation)
+        - Output Layer: {'1 unit (Linear)' if model_type == 'Regression' else 'Softmax activation'}
+        """)
+    
+    with info_col2:
+        st.info(f"""
+        **Training Configuration:**
+        - Optimizer: {optimizer_choice}
+        - Loss Function: {'Mean Squared Error (MSE)' if model_type == 'Regression' else 'Sparse Categorical Crossentropy'}
+        - Metrics: {'Mean Absolute Error (MAE)' if model_type == 'Regression' else 'Accuracy'}
+        - Learning Rate: {learning_rate}
+        """)
     
     if st.button("Train Model"):
         try:
@@ -355,13 +401,19 @@ def create_model_training_section(processed_data, selected_features):
             status_text.text("Training deep learning model...")
             progress_bar.progress(50)
             
+            # Select optimizer
+            if optimizer_choice == "Adam":
+                optimizer = Adam(learning_rate=learning_rate)
+            else:
+                optimizer = SGD(learning_rate=learning_rate)
+            
             if model_type == "Regression":
                 model = Sequential([
                     Dense(layer1_units, activation='relu', input_shape=(X_train_scaled.shape[1],)),
                     Dense(layer2_units, activation='relu'),
                     Dense(1)
                 ])
-                model.compile(optimizer=Adam(learning_rate=learning_rate), loss='mse', metrics=['mae'])
+                model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
             else:
                 n_classes = len(np.unique(y))
                 model = Sequential([
@@ -369,7 +421,7 @@ def create_model_training_section(processed_data, selected_features):
                     Dense(layer2_units, activation='relu'),
                     Dense(n_classes, activation='softmax')
                 ])
-                model.compile(optimizer=Adam(learning_rate=learning_rate), 
+                model.compile(optimizer=optimizer, 
                             loss='sparse_categorical_crossentropy', metrics=['accuracy'])
             
             # Train model
@@ -504,41 +556,63 @@ def create_prediction_section():
             
             # Make prediction
             if model_type == "Regression":
-                prediction = model.predict(input_scaled, verbose=0)[0][0]
-                st.success(f"**Predicted Insurance Charges: ${prediction:.2f}**")
+                # Predict cost directly
+                predicted_cost = model.predict(input_scaled, verbose=0)[0][0]
                 
-                # Add some context
-                if prediction < 5000:
-                    st.info("This is considered a low insurance charge.")
-                elif prediction < 15000:
-                    st.info("This is considered a medium insurance charge.")
-                elif prediction < 30000:
-                    st.warning("This is considered a high insurance charge.")
-                else:
-                    st.error("This is considered a very high insurance charge.")
+                # Derive charge category from cost
+                predicted_category, category_emoji = get_charge_category_from_cost(predicted_cost)
+                
+                # Display results
+                st.success(f"**Predicted Insurance Cost: ${predicted_cost:.2f}**")
+                st.success(f"**Predicted Charge Category: {category_emoji} {predicted_category}**")
+                
+                # Add detailed context
+                cost_range = get_cost_range_from_category(predicted_category)
+                st.info(f"""
+                **Prediction Details:**
+                - Predicted Cost: ${predicted_cost:.2f}
+                - Charge Category: {predicted_category}
+                - Category Range: ${cost_range[0]:,} - ${cost_range[1]:,}
+                """)
                     
             else:
+                # Predict category directly
                 prediction_proba = model.predict(input_scaled, verbose=0)[0]
                 predicted_class = np.argmax(prediction_proba)
                 
                 # Get category name
                 charge_encoder = encoders['charge_category']
-                category_name = charge_encoder.inverse_transform([predicted_class])[0]
+                predicted_category = charge_encoder.inverse_transform([predicted_class])[0]
                 confidence = prediction_proba[predicted_class] * 100
                 
-                st.success(f"**Predicted Charge Category: {category_name}**")
-                st.info(f"Confidence: {confidence:.1f}%")
+                # Estimate cost from category
+                cost_range = get_cost_range_from_category(predicted_category)
+                estimated_cost = (cost_range[0] + cost_range[1]) / 2  # Use midpoint as estimate
+                
+                category_emoji = get_charge_category_from_cost(estimated_cost)[1]
+                
+                # Display results
+                st.success(f"**Predicted Charge Category: {category_emoji} {predicted_category}**")
+                st.success(f"**Estimated Insurance Cost: ${estimated_cost:.2f}**")
+                
+                st.info(f"""
+                **Prediction Details:**
+                - Predicted Category: {predicted_category} (Confidence: {confidence:.1f}%)
+                - Estimated Cost: ${estimated_cost:.2f}
+                - Category Range: ${cost_range[0]:,} - ${cost_range[1]:,}
+                """)
                 
                 # Show all probabilities
-                st.subheader("Class Probabilities")
+                st.subheader("Category Prediction Probabilities")
                 prob_df = pd.DataFrame({
                     'Category': charge_encoder.inverse_transform(range(len(prediction_proba))),
-                    'Probability': prediction_proba
+                    'Probability': prediction_proba * 100
                 })
                 prob_df = prob_df.sort_values('Probability', ascending=False)
                 
                 fig = px.bar(prob_df, x='Category', y='Probability', 
-                           title='Prediction Probabilities by Category')
+                           title='Prediction Probabilities by Category (%)',
+                           labels={'Probability': 'Probability (%)'})
                 st.plotly_chart(fig, use_container_width=True)
                 
         except Exception as e:
