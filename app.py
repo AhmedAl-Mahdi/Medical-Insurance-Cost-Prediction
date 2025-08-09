@@ -28,26 +28,107 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Medical-themed CSS styling
 st.markdown("""
 <style>
+    /* Medical theme with calming blues and whites */
     .main-header {
-        font-size: 2.5rem;
-        color: #1e88e5;
+        font-size: 2.8rem;
+        color: #2E86AB;
         text-align: center;
         margin-bottom: 2rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        border: 2px solid #2E86AB;
+        box-shadow: 0 4px 8px rgba(46, 134, 171, 0.1);
     }
+    
     .section-header {
-        font-size: 1.5rem;
-        color: #424242;
+        font-size: 1.6rem;
+        color: #1565C0;
         margin-top: 2rem;
         margin-bottom: 1rem;
+        padding: 0.8rem;
+        background: linear-gradient(90deg, #E8F4FD 0%, #F3F9FF 100%);
+        border-left: 4px solid #2E86AB;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(46, 134, 171, 0.1);
     }
+    
     .metric-card {
-        background-color: #f5f5f5;
-        padding: 1rem;
-        border-radius: 0.5rem;
+        background: linear-gradient(135deg, #F8FBFF 0%, #E3F2FD 100%);
+        padding: 1.2rem;
+        border-radius: 12px;
         margin: 0.5rem 0;
+        border: 1px solid #BBDEFB;
+        box-shadow: 0 3px 6px rgba(46, 134, 171, 0.08);
+    }
+    
+    /* Medical-themed sidebar styling */
+    .css-1d391kg {
+        background-color: #F1F8FF;
+    }
+    
+    /* Success message styling */
+    .stSuccess {
+        background-color: #E8F5E8;
+        border: 1px solid #4CAF50;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    
+    /* Info message styling */
+    .stInfo {
+        background-color: #E3F2FD;
+        border: 1px solid #2196F3;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    
+    /* Medical equipment icons and styling */
+    .medical-icon {
+        color: #2E86AB;
+        font-size: 1.2em;
+        margin-right: 8px;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background: linear-gradient(135deg, #2E86AB 0%, #1565C0 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(46, 134, 171, 0.2);
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(46, 134, 171, 0.3);
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #F8FBFF;
+        border-radius: 8px;
+        padding: 4px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent;
+        border-radius: 6px;
+        color: #2E86AB;
+        font-weight: 500;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background-color: #2E86AB;
+        color: white;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -119,7 +200,7 @@ def preprocess_data(data, target_col='charges'):
 
 def create_eda_section(data):
     """Create the EDA section with interactive visualizations"""
-    st.markdown('<div class="section-header">📊 Exploratory Data Analysis</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">📊 Medical Data Analysis & Insights</div>', unsafe_allow_html=True)
     
     if data is None:
         st.warning("Please load a dataset first.")
@@ -225,7 +306,7 @@ def create_eda_section(data):
 
 def create_preprocessing_section(data):
     """Create the preprocessing section"""
-    st.markdown('<div class="section-header">🔧 Data Preprocessing</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">🔬 Medical Data Preprocessing & Feature Engineering</div>', unsafe_allow_html=True)
     
     if data is None:
         st.warning("Please load a dataset first.")
@@ -295,7 +376,7 @@ def create_preprocessing_section(data):
 
 def create_model_training_section(processed_data, selected_features):
     """Create the model training section"""
-    st.markdown('<div class="section-header">🤖 Model Training</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">🧠 AI Model Training & Optimization</div>', unsafe_allow_html=True)
     
     if processed_data is None or selected_features is None:
         st.warning("Please complete data preprocessing first.")
@@ -322,6 +403,10 @@ def create_model_training_section(processed_data, selected_features):
     
     with col4:
         optimizer_choice = st.selectbox("Optimizer", ["Adam", "SGD"], index=0)
+        
+        # Show information about SGD stability
+        if optimizer_choice == "SGD":
+            st.info("ℹ️ **SGD Notice**: For regression tasks, learning rate is automatically capped at 0.01 and gradient clipping is applied to prevent numerical instability.")
     
     # Display model architecture information
     st.subheader("Model Architecture Information")
@@ -401,11 +486,32 @@ def create_model_training_section(processed_data, selected_features):
             status_text.text("Training deep learning model...")
             progress_bar.progress(50)
             
-            # Select optimizer
+            # Handle target normalization for regression (prevents gradient explosion with SGD)
+            if model_type == "Regression":
+                # Normalize target values to prevent gradient explosion
+                y_mean = y_train.mean()
+                y_std = y_train.std()
+                y_train_normalized = (y_train - y_mean) / y_std
+                y_test_normalized = (y_test - y_mean) / y_std
+                
+                # Store normalization parameters for prediction
+                st.session_state.y_mean = y_mean
+                st.session_state.y_std = y_std
+            else:
+                y_train_normalized = y_train
+                y_test_normalized = y_test
+            
+            # Select optimizer with appropriate settings for SGD
             if optimizer_choice == "Adam":
                 optimizer = Adam(learning_rate=learning_rate)
             else:
-                optimizer = SGD(learning_rate=learning_rate)
+                # Use gradient clipping and lower learning rate for SGD to prevent NaN
+                if model_type == "Regression":
+                    # Lower learning rate for SGD with regression to prevent gradient explosion
+                    sgd_lr = min(learning_rate, 0.01)  # Cap at 0.01 for stability
+                    optimizer = SGD(learning_rate=sgd_lr, clipnorm=1.0)  # Add gradient clipping
+                else:
+                    optimizer = SGD(learning_rate=learning_rate, clipnorm=1.0)
             
             if model_type == "Regression":
                 model = Sequential([
@@ -428,11 +534,18 @@ def create_model_training_section(processed_data, selected_features):
             status_text.text("Training in progress...")
             progress_bar.progress(75)
             
-            history = model.fit(X_train_scaled, y_train, 
-                              epochs=epochs, 
-                              batch_size=batch_size, 
-                              validation_split=validation_split, 
-                              verbose=0)
+            if model_type == "Regression":
+                history = model.fit(X_train_scaled, y_train_normalized, 
+                                  epochs=epochs, 
+                                  batch_size=batch_size, 
+                                  validation_split=validation_split, 
+                                  verbose=0)
+            else:
+                history = model.fit(X_train_scaled, y_train_normalized, 
+                                  epochs=epochs, 
+                                  batch_size=batch_size, 
+                                  validation_split=validation_split, 
+                                  verbose=0)
             
             # Store model in session state
             st.session_state.model = model
@@ -444,17 +557,20 @@ def create_model_training_section(processed_data, selected_features):
             progress_bar.progress(100)
             
             if model_type == "Regression":
-                loss, mae = model.evaluate(X_test_scaled, y_test, verbose=0)
-                y_pred_dl = model.predict(X_test_scaled, verbose=0)
+                loss, mae = model.evaluate(X_test_scaled, y_test_normalized, verbose=0)
+                y_pred_dl_normalized = model.predict(X_test_scaled, verbose=0)
+                
+                # Denormalize predictions for comparison
+                y_pred_dl = (y_pred_dl_normalized * y_std) + y_mean
                 
                 dl_metrics = {
-                    'MSE': loss,
-                    'RMSE': np.sqrt(loss),
-                    'MAE': mae,
+                    'MSE': mean_squared_error(y_test, y_pred_dl),
+                    'RMSE': np.sqrt(mean_squared_error(y_test, y_pred_dl)),
+                    'MAE': mean_absolute_error(y_test, y_pred_dl),
                     'R2': r2_score(y_test, y_pred_dl)
                 }
             else:
-                loss, accuracy = model.evaluate(X_test_scaled, y_test, verbose=0)
+                loss, accuracy = model.evaluate(X_test_scaled, y_test_normalized, verbose=0)
                 y_pred_dl = model.predict(X_test_scaled, verbose=0)
                 y_pred_dl_classes = np.argmax(y_pred_dl, axis=1)
                 
@@ -505,7 +621,7 @@ def create_model_training_section(processed_data, selected_features):
 
 def create_prediction_section():
     """Create the prediction section"""
-    st.markdown('<div class="section-header">🔮 Make Predictions</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">🔮 Medical Cost Prediction & Analysis</div>', unsafe_allow_html=True)
     
     if 'model' not in st.session_state:
         st.warning("Please train a model first.")
@@ -517,7 +633,12 @@ def create_prediction_section():
     encoders = st.session_state.encoders
     model_type = st.session_state.model_type
     
-    st.subheader("Input New Data for Prediction")
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #F8FBFF 0%, #E8F4FD 100%); padding: 1.5rem; border-radius: 12px; border: 1px solid #BBDEFB; margin-bottom: 1.5rem;">
+        <h3 style="color: #1565C0; margin-top: 0;">🏥 Patient Information Input</h3>
+        <p style="color: #2E86AB; margin-bottom: 0;">Enter the patient's medical and demographic information below to get cost and category predictions.</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Create input form
     with st.form("prediction_form"):
@@ -556,23 +677,31 @@ def create_prediction_section():
             
             # Make prediction
             if model_type == "Regression":
-                # Predict cost directly
-                predicted_cost = model.predict(input_scaled, verbose=0)[0][0]
+                # Predict normalized cost
+                predicted_cost_normalized = model.predict(input_scaled, verbose=0)[0][0]
+                
+                # Denormalize the prediction
+                y_mean = st.session_state.get('y_mean', 0)
+                y_std = st.session_state.get('y_std', 1)
+                predicted_cost = (predicted_cost_normalized * y_std) + y_mean
+                
+                # Ensure positive cost
+                predicted_cost = max(0, predicted_cost)
                 
                 # Derive charge category from cost
                 predicted_category, category_emoji = get_charge_category_from_cost(predicted_cost)
                 
                 # Display results
-                st.success(f"**Predicted Insurance Cost: ${predicted_cost:.2f}**")
-                st.success(f"**Predicted Charge Category: {category_emoji} {predicted_category}**")
+                st.success(f"**💰 Predicted Insurance Cost: ${predicted_cost:.2f}**")
+                st.success(f"**📊 Predicted Charge Category: {category_emoji} {predicted_category}**")
                 
                 # Add detailed context
                 cost_range = get_cost_range_from_category(predicted_category)
                 st.info(f"""
-                **Prediction Details:**
-                - Predicted Cost: ${predicted_cost:.2f}
-                - Charge Category: {predicted_category}
-                - Category Range: ${cost_range[0]:,} - ${cost_range[1]:,}
+                **🏥 Prediction Details:**
+                - **Predicted Cost**: ${predicted_cost:.2f}
+                - **Charge Category**: {predicted_category}
+                - **Category Range**: ${cost_range[0]:,} - ${cost_range[1]:,}
                 """)
                     
             else:
@@ -592,18 +721,18 @@ def create_prediction_section():
                 category_emoji = get_charge_category_from_cost(estimated_cost)[1]
                 
                 # Display results
-                st.success(f"**Predicted Charge Category: {category_emoji} {predicted_category}**")
-                st.success(f"**Estimated Insurance Cost: ${estimated_cost:.2f}**")
+                st.success(f"**📊 Predicted Charge Category: {category_emoji} {predicted_category}**")
+                st.success(f"**💰 Estimated Insurance Cost: ${estimated_cost:.2f}**")
                 
                 st.info(f"""
-                **Prediction Details:**
-                - Predicted Category: {predicted_category} (Confidence: {confidence:.1f}%)
-                - Estimated Cost: ${estimated_cost:.2f}
-                - Category Range: ${cost_range[0]:,} - ${cost_range[1]:,}
+                **🏥 Prediction Details:**
+                - **Predicted Category**: {predicted_category} (Confidence: {confidence:.1f}%)
+                - **Estimated Cost**: ${estimated_cost:.2f}
+                - **Category Range**: ${cost_range[0]:,} - ${cost_range[1]:,}
                 """)
                 
                 # Show all probabilities
-                st.subheader("Category Prediction Probabilities")
+                st.markdown('<h4 style="color: #1565C0;">📈 Category Prediction Probabilities</h4>', unsafe_allow_html=True)
                 prob_df = pd.DataFrame({
                     'Category': charge_encoder.inverse_transform(range(len(prediction_proba))),
                     'Probability': prediction_proba * 100
@@ -621,20 +750,38 @@ def create_prediction_section():
 def main():
     """Main application function"""
     
-    # Header
-    st.markdown('<div class="main-header">🏥 Medical Insurance Cost Prediction Dashboard</div>', 
-                unsafe_allow_html=True)
+    # Header with medical theming
+    st.markdown('''
+    <div class="main-header">
+        🏥 Medical Insurance Cost Prediction Dashboard 🩺
+    </div>
+    ''', unsafe_allow_html=True)
     
     st.markdown("""
-    This dashboard provides comprehensive analysis and prediction capabilities for medical insurance costs.
-    Upload your own dataset or use the default insurance dataset to explore data, train models, and make predictions.
-    """)
+    <div style="background: linear-gradient(135deg, #E3F2FD 0%, #F8FBFF 100%); padding: 1.5rem; border-radius: 12px; border: 1px solid #BBDEFB; margin-bottom: 2rem;">
+        <p style="color: #1565C0; font-size: 1.1rem; margin: 0; text-align: center;">
+            🩺 <strong>Welcome to the Medical Insurance Analysis Platform</strong> 🏥<br>
+            This comprehensive dashboard provides advanced analysis and prediction capabilities for medical insurance costs. 
+            Upload your own dataset or use our default insurance dataset to explore data, train AI models, and make accurate predictions.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Sidebar
-    st.sidebar.title("📋 Navigation")
+    # Sidebar with medical theming
+    st.sidebar.markdown("""
+    <div style="background: linear-gradient(135deg, #E3F2FD 0%, #F1F8FF 100%); padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
+        <h2 style="color: #2E86AB; text-align: center; margin: 0;">
+            🏥 Navigation
+        </h2>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Data upload section
-    st.sidebar.subheader("📁 Data Upload")
+    # Data upload section with medical styling
+    st.sidebar.markdown("""
+    <div style="background: linear-gradient(135deg, #F8FBFF 0%, #E8F4FD 100%); padding: 1rem; border-radius: 8px; border: 1px solid #BBDEFB; margin-bottom: 1rem;">
+        <h3 style="color: #1565C0; margin-top: 0;">📁 Patient Data Upload</h3>
+    </div>
+    """, unsafe_allow_html=True)
     uploaded_file = st.sidebar.file_uploader("Upload CSV file", type=['csv'])
     
     use_default = st.sidebar.button("Use Default Dataset")
@@ -660,8 +807,13 @@ def main():
     
     # Main sections
     if data is not None:
-        # Create tabs for different sections
-        tab1, tab2, tab3, tab4 = st.tabs(["📊 EDA", "🔧 Preprocessing", "🤖 Model Training", "🔮 Predictions"])
+        # Create tabs for different sections with medical theming
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📊 Medical Data Analysis", 
+            "🔬 Data Processing", 
+            "🧠 AI Model Training", 
+            "🔮 Cost Predictions"
+        ])
         
         with tab1:
             create_eda_section(data)
