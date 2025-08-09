@@ -58,7 +58,17 @@ def load_data():
         st.error("Insurance dataset not found. Please ensure 'insurance.csv' is in the application directory.")
         return None
 
-def preprocess_data(data):
+def categorize_charge(cost):
+    """Categorize insurance charge based on cost thresholds"""
+    # These thresholds are approximate quartiles based on typical insurance data
+    if cost < 4000:
+        return "Low"
+    elif cost < 9000:
+        return "Medium" 
+    elif cost < 16000:
+        return "High"
+    else:
+        return "Very High"
     """Preprocess the data for model training"""
     processed_data = data.copy()
     
@@ -383,93 +393,158 @@ def show_prediction_page(data):
     # Check if models are trained
     if not st.session_state.models_trained:
         st.warning("⚠️ Please train the models first in the Model Training page.")
-        return
+        
+        # Add a demo button to show the interface
+        if st.button("🎯 Show Demo Prediction Interface", help="Click to see how the prediction interface would look"):
+            st.session_state.demo_mode = True
     
-    st.subheader("📝 Enter Patient Information")
-    
-    # Input fields
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        age = st.number_input("Age", min_value=18, max_value=100, value=30)
-        sex = st.selectbox("Sex", ["female", "male"])
-    
-    with col2:
-        bmi = st.number_input("BMI", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
-        children = st.number_input("Children", min_value=0, max_value=10, value=0)
-    
-    with col3:
-        smoker = st.selectbox("Smoker", ["no", "yes"])
-        region = st.selectbox("Region", ["northeast", "northwest", "southeast", "southwest"])
-    
-    # Predict button
-    if st.button("🔮 Predict", type="primary"):
-        try:
-            # Prepare input data
-            input_data = pd.DataFrame({
-                'age': [age],
-                'sex': [sex],
-                'bmi': [bmi],
-                'children': [children],
-                'smoker': [smoker],
-                'region': [region]
-            })
-            
-            # Encode categorical variables
-            input_data['sex'] = st.session_state.label_encoders['sex'].transform(input_data['sex'])
-            input_data['smoker'] = st.session_state.label_encoders['smoker'].transform(input_data['smoker'])
-            input_data['region'] = st.session_state.label_encoders['region'].transform(input_data['region'])
-            
-            # Scale input data
-            input_scaled = st.session_state.scaler.transform(input_data)
-            
-            # Make predictions
-            cost_pred = st.session_state.regression_model.predict(input_scaled, verbose=0)[0][0]
-            class_pred_prob = st.session_state.classification_model.predict(input_scaled, verbose=0)[0]
-            class_pred = np.argmax(class_pred_prob)
-            
-            # Get category name
-            category_name = st.session_state.charge_category_encoder.inverse_transform([class_pred])[0]
-            
-            st.subheader("🎯 Prediction Results")
-            
-            # Display predictions as metrics
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.metric(
-                    "Predicted Insurance Cost",
-                    f"${cost_pred:,.2f}",
-                    help="Predicted insurance charge amount"
+    # Show prediction interface if models are trained OR in demo mode
+    if st.session_state.models_trained or st.session_state.get('demo_mode', False):
+        if st.session_state.get('demo_mode', False):
+            st.info("🎭 **Demo Mode**: This shows how the prediction interface works. Train models to make real predictions.")
+        
+        st.subheader("📝 Enter Patient Information")
+        
+        # Input fields
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            age = st.number_input("Age", min_value=18, max_value=100, value=30)
+            sex = st.selectbox("Sex", ["female", "male"])
+        
+        with col2:
+            bmi = st.number_input("BMI", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
+            children = st.number_input("Children", min_value=0, max_value=10, value=0)
+        
+        with col3:
+            smoker = st.selectbox("Smoker", ["no", "yes"])
+            region = st.selectbox("Region", ["northeast", "northwest", "southeast", "southwest"])
+        
+        # Predict button
+        if st.button("🔮 Predict", type="primary"):
+            if st.session_state.get('demo_mode', False):
+                # Demo mode - show mock predictions
+                st.subheader("🎯 Prediction Results (Demo)")
+                
+                # Mock predictions for demo
+                import random
+                random.seed(42)
+                mock_cost = 8000 + (age * 100) + (1000 if smoker == "yes" else 0) + (bmi * 50)
+                mock_categories = ["Low", "Medium", "High", "Very High"]
+                mock_category = mock_categories[2 if smoker == "yes" else 1]  # Higher if smoker
+                mock_probabilities = [0.1, 0.3, 0.5, 0.1] if smoker == "no" else [0.05, 0.15, 0.6, 0.2]
+                
+                # Get regression-derived category
+                regression_category = categorize_charge(mock_cost)
+                
+                # Display predictions as metrics
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric(
+                        "Predicted Insurance Cost",
+                        f"${mock_cost:,.2f}",
+                        help="Predicted insurance charge amount"
+                    )
+                    st.caption(f"*Regression-derived category: {regression_category}*")
+                
+                with col2:
+                    st.metric(
+                        "Predicted Charge Category",
+                        mock_category,
+                        help="Category based on charge quartiles"
+                    )
+                
+                # Classification probabilities bar chart
+                st.subheader("📊 Classification Probabilities")
+                prob_df = pd.DataFrame({
+                    'Category': mock_categories,
+                    'Probability': mock_probabilities
+                })
+                
+                fig = px.bar(
+                    prob_df, 
+                    x='Category', 
+                    y='Probability',
+                    title='Probability Distribution for Charge Categories',
+                    color='Probability',
+                    color_continuous_scale='viridis'
                 )
-            
-            with col2:
-                st.metric(
-                    "Predicted Charge Category",
-                    category_name,
-                    help="Category based on charge quartiles"
-                )
-            
-            # Classification probabilities bar chart
-            st.subheader("📊 Classification Probabilities")
-            prob_df = pd.DataFrame({
-                'Category': st.session_state.charge_category_encoder.classes_,
-                'Probability': class_pred_prob
-            })
-            
-            fig = px.bar(
-                prob_df, 
-                x='Category', 
-                y='Probability',
-                title='Probability Distribution for Charge Categories',
-                color='Probability',
-                color_continuous_scale='viridis'
-            )
-            fig.update_layout(showlegend=False)
-            st.plotly_chart(fig, use_container_width=True)
-            
-        except Exception as e:
-            st.error(f"Error making prediction: {str(e)}")
+                fig.update_layout(showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+                
+            else:
+                # Real prediction mode
+                try:
+                    # Prepare input data
+                    input_data = pd.DataFrame({
+                        'age': [age],
+                        'sex': [sex],
+                        'bmi': [bmi],
+                        'children': [children],
+                        'smoker': [smoker],
+                        'region': [region]
+                    })
+                    
+                    # Encode categorical variables
+                    input_data['sex'] = st.session_state.label_encoders['sex'].transform(input_data['sex'])
+                    input_data['smoker'] = st.session_state.label_encoders['smoker'].transform(input_data['smoker'])
+                    input_data['region'] = st.session_state.label_encoders['region'].transform(input_data['region'])
+                    
+                    # Scale input data
+                    input_scaled = st.session_state.scaler.transform(input_data)
+                    
+                    # Make predictions
+                    cost_pred = st.session_state.regression_model.predict(input_scaled, verbose=0)[0][0]
+                    class_pred_prob = st.session_state.classification_model.predict(input_scaled, verbose=0)[0]
+                    class_pred = np.argmax(class_pred_prob)
+                    
+                    # Get category name
+                    category_name = st.session_state.charge_category_encoder.inverse_transform([class_pred])[0]
+                    
+                    # Get regression-derived category
+                    regression_category = categorize_charge(cost_pred)
+                    
+                    st.subheader("🎯 Prediction Results")
+                    
+                    # Display predictions as metrics
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.metric(
+                            "Predicted Insurance Cost",
+                            f"${cost_pred:,.2f}",
+                            help="Predicted insurance charge amount"
+                        )
+                        st.caption(f"*Regression-derived category: {regression_category}*")
+                    
+                    with col2:
+                        st.metric(
+                            "Predicted Charge Category",
+                            category_name,
+                            help="Category based on charge quartiles"
+                        )
+                    
+                    # Classification probabilities bar chart
+                    st.subheader("📊 Classification Probabilities")
+                    prob_df = pd.DataFrame({
+                        'Category': st.session_state.charge_category_encoder.classes_,
+                        'Probability': class_pred_prob
+                    })
+                    
+                    fig = px.bar(
+                        prob_df, 
+                        x='Category', 
+                        y='Probability',
+                        title='Probability Distribution for Charge Categories',
+                        color='Probability',
+                        color_continuous_scale='viridis'
+                    )
+                    fig.update_layout(showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                except Exception as e:
+                    st.error(f"Error making prediction: {str(e)}")
 
 if __name__ == "__main__":
     main()
