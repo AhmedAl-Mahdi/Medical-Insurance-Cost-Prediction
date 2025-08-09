@@ -48,13 +48,37 @@ def inject_global_styles():
     }
     
     /* Dark mode variables */
-    .dark-mode {
+    [data-theme="dark"] {
         --primary-blue: #4A9ECC;
         --primary-teal: #C855A0;
         --light-blue: #1E3A5F;
         --soft-gray: #2D3748;
         --dark-gray: #F7FAFC;
         --gradient-bg: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    }
+    
+    /* Dark mode body styling */
+    [data-theme="dark"] .stApp {
+        background: var(--gradient-bg);
+        color: var(--dark-gray);
+    }
+    
+    [data-theme="dark"] .card {
+        background: var(--soft-gray);
+        color: var(--dark-gray);
+        border-left-color: var(--primary-blue);
+    }
+    
+    [data-theme="dark"] .metric-card {
+        background: var(--soft-gray);
+        color: var(--dark-gray);
+        border-top-color: var(--primary-blue);
+    }
+    
+    [data-theme="dark"] .clinical-context {
+        background: #2D3748;
+        border-color: #4A5568;
+        color: var(--dark-gray);
     }
     
     /* Global font */
@@ -224,16 +248,9 @@ def inject_global_styles():
         color: white;
     }
     
-    /* Dark mode toggle */
-    .dark-mode-toggle {
-        position: fixed;
-        top: 70px;
-        right: 20px;
-        z-index: 999;
-        background: white;
-        padding: 0.5rem;
-        border-radius: 50%;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    /* Sidebar styling */
+    .css-1d391kg {
+        background: linear-gradient(180deg, var(--light-blue), white);
     }
     
     /* Responsive design */
@@ -628,7 +645,17 @@ def main():
         # Dark mode toggle
         dark_mode = st.checkbox("🌙 Dark Mode", key="dark_mode")
         if dark_mode:
-            st.markdown('<script>document.body.classList.add("dark-mode");</script>', unsafe_allow_html=True)
+            st.markdown("""
+            <script>
+            document.documentElement.setAttribute('data-theme', 'dark');
+            </script>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <script>
+            document.documentElement.removeAttribute('data-theme');
+            </script>
+            """, unsafe_allow_html=True)
         
         # Show clinical context
         show_context = st.checkbox("⚠️ Show Clinical Context", value=True)
