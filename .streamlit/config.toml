@@ -1,0 +1,16 @@
+[theme]
+# Medical theme configuration
+primaryColor = "#2E86AB"  # Primary blue for medical feel
+backgroundColor = "#F0F8FF"  # Light blue background
+secondaryBackgroundColor = "#FFFFFF"  # White for cards and sections
+textColor = "#2C3E50"  # Dark gray for readability
+font = "sans serif"  # Clean, professional font
+
+[server]
+# Server configuration
+headless = true
+port = 8501
+
+[browser]
+# Browser settings
+gatherUsageStats = false
